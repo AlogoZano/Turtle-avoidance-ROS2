@@ -36,9 +36,10 @@ class RobotController(Node):
         history=QoSHistoryPolicy.KEEP_LAST, # Keep/store only up to last N samples
         depth=10 # Queue size/depth of 10 (only honored if the “history” policy was set to “keep last”)
         )
-        self.robot_ctrl_pub = self.create_publisher(Twist, '/turtlebot/cmd_vel', qos_profile) # Publisher which will publish Twist message to the topic '/turtle1/cmd_vel' adhering to 'qos_profile' QoS profile
-        self.robot_pose_sub = self.create_subscription(Pose, '/turtlebot/pose', self.robot_feedback_callback, qos_profile) # Subscriber which will subscribe Pose message from the topic '/turtle1/pose' and execute 'robot_feedback_callback()' callback function adhering to 'qos_profile' QoS profile
+        self.robot_ctrl_pub = self.create_publisher(Twist, '/joselu/cmd_vel', qos_profile) # Publisher which will publish Twist message to the topic '/turtle1/cmd_vel' adhering to 'qos_profile' QoS profile
+        self.robot_pose_sub = self.create_subscription(Pose, '/joselu/pose', self.robot_feedback_callback, qos_profile) # Subscriber which will subscribe Pose message from the topic '/turtle1/pose' and execute 'robot_feedback_callback()' callback function adhering to 'qos_profile' QoS profile
 
+        
         timer_period = 0.1 # Node execution time period (seconds)
         self.timer = self.create_timer(timer_period, self.robot_controller_callback) # Define timer to execute 'robot_controller_callback()' every 'timer_period' seconds
         # Initialize variables
@@ -122,9 +123,9 @@ class RobotController(Node):
     
     def set_robot_sequence(self):
         # Set goal pose
-        self.seq_data = [[5.5, 5.5, -pi/2],
-                         [1.0, 2.0, -pi/2],
-                         [7.0, 1.0, -pi/2]
+        self.seq_data = [[1.0, 3.0, -pi/2],
+                         [1.0, 9.0, -pi/2],
+                         [9.0, 5.5, -pi/2]
                         ]
         if self.goal_count < len(self.seq_data):
             (self.goal_pose.x, self.goal_pose.y, self.goal_pose.theta) = self.seq_data[self.goal_count]

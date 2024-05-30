@@ -30,7 +30,9 @@ setup(
             "gotogoal_node = ros_move.gotogoal_node:main",
             "speed_change_node = ros_move.speed_change_node:main",
             "bot_node = ros_move.bot_node:main",
+            "bot_node2 = ros_move.bot_node2:main",
             "lane_change_node = ros_move.lane_change_node:main",
+            "lane_follower_avoid_turtles_node = ros_move.lane_follower_avoid_turtles_node:main",
         ],
     },
 )

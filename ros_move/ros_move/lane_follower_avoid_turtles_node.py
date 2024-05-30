@@ -36,19 +36,24 @@ class RobotController(Node):
         history=QoSHistoryPolicy.KEEP_LAST, # Keep/store only up to last N samples
         depth=10 # Queue size/depth of 10 (only honored if the “history” policy was set to “keep last”)
         )
-        self.robot_ctrl_pub = self.create_publisher(Twist, '/turtlebot/cmd_vel', qos_profile) # Publisher which will publish Twist message to the topic '/turtle1/cmd_vel' adhering to 'qos_profile' QoS profile
-        self.robot_pose_sub = self.create_subscription(Pose, '/turtlebot/pose', self.robot_feedback_callback, qos_profile) # Subscriber which will subscribe Pose message from the topic '/turtle1/pose' and execute 'robot_feedback_callback()' callback function adhering to 'qos_profile' QoS profile
+        self.robot_ctrl_pub = self.create_publisher(Twist, '/turtlerobot/cmd_vel', qos_profile) # Publisher which will publish Twist message to the topic '/turtle1/cmd_vel' adhering to 'qos_profile' QoS profile
+        self.robot_pose_sub = self.create_subscription(Pose, '/turtlerobot/pose', self.robot_feedback_callback, qos_profile) # Subscriber which will subscribe Pose message from the topic '/turtle1/pose' and execute 'robot_feedback_callback()' callback function adhering to 'qos_profile' QoS profile
 
+        self.bot_pose_sub = self.create_subscription(Pose, '/turtlebot/pose', self.bot_feedback_callback, qos_profile) # Subscriber which will subscribe Pose message from the topic '/turtle1/pose' and execute 'robot_feedback_callback()' callback function adhering to 'qos_profile' QoS profile
+        self.bot_pose_sub = self.create_subscription(Pose, '/joselu/pose', self.bot1_feedback_callback, qos_profile)
+        self.bot_pose_sub = self.create_subscription(Pose, '/amad/pose', self.bot_feedback_callback, qos_profile)
         timer_period = 0.1 # Node execution time period (seconds)
         self.timer = self.create_timer(timer_period, self.robot_controller_callback) # Define timer to execute 'robot_controller_callback()' every 'timer_period' seconds
         # Initialize variables
         self.robot_pose = Pose() # Robot pose (position & rotation)
         self.robot_flag = False # Flag to check if robot feedback is available
 
+        self.bot_pose = Pose() # Robot pose (position & rotation)
+
         self.goal_pose = Pose() # Goal pose (position & rotation)
         self.goal_flag = False # Flag to check if set goal is reached
         self.ctrl_msg = Twist() # Robot control commands (twist)
-        (self.goal_pose.x, self.goal_pose.y, self.goal_pose.theta) = 5.5, 10.0, -pi/2  
+        (self.goal_pose.x, self.goal_pose.y, self.goal_pose.theta) = 5.5, 1.0, pi/3
         self.goal_count = 0
         
     ########################
@@ -62,6 +67,30 @@ class RobotController(Node):
         self.robot_pose.y = message.y # Extract position along y-axis
         self.robot_pose.theta = message.theta # Extract orientation about z-axis
         self.robot_flag = True # Set robot flag to feedback available
+
+    def bot_feedback_callback(self, message):
+        '''Robot feedback (pose) callback'''
+        self.bot_pose = message # Capture incomming message (Pose)
+        self.bot_pose.x = message.x # Extract position along x-axis
+        self.bot_pose.y = message.y # Extract position along y-axis
+        self.bot_pose.theta = message.theta # Extract orientation about z-axis
+        self.bot_flag = True # Set robot flag to feedback available
+
+    def bot1_feedback_callback(self, message):
+        '''Robot feedback (pose) callback'''
+        self.bot_pose = message # Capture incomming message (Pose)
+        self.bot_pose.x = message.x # Extract position along x-axis
+        self.bot_pose.y = message.y # Extract position along y-axis
+        self.bot_pose.theta = message.theta # Extract orientation about z-axis
+        self.bot_flag = True # Set robot flag to feedback available
+    
+    def bot2_feedback_callback(self, message):
+        '''Robot feedback (pose) callback'''
+        self.bot_pose = message # Capture incomming message (Pose)
+        self.bot_pose.x = message.x # Extract position along x-axis
+        self.bot_pose.y = message.y # Extract position along y-axis
+        self.bot_pose.theta = message.theta # Extract orientation about z-axis
+        self.bot_flag = True # Set robot flag to feedback available
 
 
     def robot_controller_callback(self):
@@ -85,18 +114,42 @@ class RobotController(Node):
         '''Error in position as Euclidean distance between current pose and goal pose.'''
         return sqrt(pow((self.goal_pose.x - self.robot_pose.x), 2) + pow((self.goal_pose.y - self.robot_pose.y), 2))
     
+
+    def get_robot_bot_distance(self):
+        '''Error in position as Euclidean distance between current pose and goal pose.'''
+        return sqrt(pow((self.bot_pose.x - self.robot_pose.x), 2) + pow((self.bot_pose.y - self.robot_pose.y), 2))
+    
     def get_rotation_error(self):
         '''Error in rotation as relative angle between current pose and goal pose.'''
+        
         desired_angle = atan2(self.goal_pose.y - self.robot_pose.y, self.goal_pose.x - self.robot_pose.x)
         
-        dtheta = desired_angle - self.robot_pose.theta + 2*pi
-        if abs(desired_angle - self.robot_pose.theta) < abs(desired_angle - self.robot_pose.theta + 2*pi):
-            dtheta = desired_angle - self.robot_pose.theta
+        distance_to_bot = self.get_robot_bot_distance()
+        
+        avoidance_radius = 5.0  
+        if distance_to_bot < avoidance_radius:
+            avoid_angle = atan2(self.bot_pose.y - self.robot_pose.y, self.bot_pose.x - self.robot_pose.x)
+            
+            repulsion_factor = (avoidance_radius - distance_to_bot) / avoidance_radius
+            
+            if avoid_angle > desired_angle:
+                desired_angle -= repulsion_factor * (pi / 3)  # Adjust by a quarter pi for smoother turns
+            else:
+                desired_angle += repulsion_factor * (pi / 2)  # Adjust by a quarter pi for smoother turns
+        
+        # Compute the rotational error
+        dtheta = desired_angle - self.robot_pose.theta
+        
+        # Normalize dtheta to be within -pi and pi
+        dtheta = (dtheta + pi) % (2 * pi) - pi
+        
         return dtheta
 
-    def get_linear_velocity(self, gain=0.2):
+
+    def get_linear_velocity(self, gain=1.0):
         '''Compute robot linear velocity using P-controller'''
         return gain * self.get_position_error()
+        
 
     def get_angular_velocity(self, gain=1.0):
         '''Compute robot angular velocity using P-controller'''
@@ -105,7 +158,7 @@ class RobotController(Node):
     def set_robot_controls(self, pos_tol=0.1, rot_tol=0.1):
         '''Set robot controls (twist) based on deviation from goal'''
         if self.get_position_error() > pos_tol: # Go to goal
-            lin_vel = self.get_linear_velocity(gain=0.7) # Set robot linear velocity
+            lin_vel = self.get_linear_velocity(gain=0.5) # Set robot linear velocity
             ang_vel = self.get_angular_velocity(gain=4.0) # Set robot angular velocity
             return lin_vel, ang_vel
         else:
@@ -122,10 +175,9 @@ class RobotController(Node):
     
     def set_robot_sequence(self):
         # Set goal pose
-        self.seq_data = [[5.5, 5.5, -pi/2],
-                         [1.0, 2.0, -pi/2],
-                         [7.0, 1.0, -pi/2]
-                        ]
+        self.seq_data = [[8.0, 2.0, 3*pi/2],
+                         [1.0, 6.78, pi/3],
+                         [7.0, 9.0, pi/3]]
         if self.goal_count < len(self.seq_data):
             (self.goal_pose.x, self.goal_pose.y, self.goal_pose.theta) = self.seq_data[self.goal_count]
             self.goal_count += 1
